@@ -1,19 +1,23 @@
-const int SHEET_NUM = 3;
+const int SHEET_NUM = 3;  // Anzhal der Sheets auf dem Aufnahmestapel
 
+// Interrupt-Konfiguration
+const unsigned long DEBOUNCE_DELAY = 200;     // Zeit in Millisekunden für die Entprellung
+volatile bool userInterrupted = false;        // Globales Flag für Unterbrechung (interruptFlag)
+volatile unsigned long lastDebounceTime = 0;  // Zeitstempel für die letzte Zustandsänderung für Entprellen
+
+// Hauptsteuerungsflag
 bool controller = false;
-bool userInterrupted = false;  // Globales Flag für Unterbrechung
 
 int SMT10_Capture, SMT10_Discard, Capture_Button, Discard_Button, Endpoint_Button;
 int Left, Right, Up, Down;
 
-void checkForUserInterrupt(char expectedInput);
 void moveDownToCaptureStack();
 void moveDownToDiscardStack();
 void moveToAboveCaptureStack();
 void moveToAboveDiscardStack();
 void readButtons();
 void readControlButtons();
-void toggleAutomatic();
+void userInterrupt();
 
 void setup() {
 
@@ -38,6 +42,10 @@ void setup() {
   pinMode(47, INPUT);
   pinMode(48, INPUT);
   pinMode(49, INPUT);
+
+  // Interrupt Pin
+  pinMode(2, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(2), userInterrupt, CHANGE);
 }
 
 void loop() {
@@ -73,8 +81,6 @@ void loop() {
   // Eingabe über den Seriellen Monitor
   // Mögliche Eingabe:  c -- Aktiviert den Controller (Steuerung des Linear-Schwenkmoduls über 4 Taster) >> Später Knopf auf Controller
   //                    a -- Aktiviert die Automatische Sequenz >> Später Knopf auf Controller
-  //                    s -- Stoppt jede mögliche Aktion >> Später Knopf auf Controller
-  //                    i -- Setzt die userInterrupted flag wieder zu false // work in progress
   if (Serial.available()) {
     switch (Serial.read()) {
       case 'c':
@@ -95,16 +101,6 @@ void loop() {
         }
         moveToAboveCaptureStack();
         break;
-    } 
-  }
-}
-
-void checkForUserInterrupt(char expectedInput) {
-  if (Serial.available() > 0) {
-    char input = Serial.read();
-    if (input == expectedInput) {
-      Serial.println("Movement interrupted by user.");
-      userInterrupted = true;  // Setze das globale Flag
     }
   }
 }
@@ -119,7 +115,6 @@ void moveDownToCaptureStack() {
   }
 
   while (!goalPos && !userInterrupted) {
-    checkForUserInterrupt('s');  // Prüfe auf Benutzerunterbrechung mit erwarteter Eingabe
 
     readButtons();
     if (Capture_Button == HIGH && state == 0) {
@@ -149,7 +144,6 @@ void moveDownToDiscardStack() {
   }
 
   while (!goalPos && !userInterrupted) {
-    checkForUserInterrupt('s');  // Prüfe auf Benutzerunterbrechung mit erwarteter Eingabe
 
     readButtons();
 
@@ -176,7 +170,6 @@ void moveToAboveCaptureStack() {
   int state = 0;
 
   while (!goalPos && !userInterrupted) {
-    checkForUserInterrupt('s'); // Prüfe auf Benutzerunterbrechung mit erwarteter Eingabe
 
     readButtons();
     if (Endpoint_Button == HIGH && state == 0) {
@@ -212,7 +205,6 @@ void moveToAboveDiscardStack() {
   int state = 0;
 
   while (!goalPos && !userInterrupted) {
-    checkForUserInterrupt('s'); // Prüfe auf Benutzerunterbrechung mit erwarteter Eingabe
 
     readButtons();
     if (Endpoint_Button == HIGH && state == 0) {
@@ -260,7 +252,14 @@ void readControlButtons() {
   Down = digitalRead(49);
 }
 
-
+void userInterrupt() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastDebounceTime > DEBOUNCE_DELAY && digitalRead(2) == HIGH) {
+    userInterrupted = !userInterrupted;  // Ändere den Zustand des Interrupts, wenn die Entprellzeit vergangen ist
+    Serial.println(digitalRead(2));
+  }
+  lastDebounceTime = currentTime;  // Aktualisiere den Zeitstempel für die letzte Zustandsänderung
+}
 
 
 
