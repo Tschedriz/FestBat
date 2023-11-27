@@ -11,6 +11,8 @@ bool controller = false;
 int SMT10_Capture, SMT10_Discard, Capture_Button, Discard_Button, Endpoint_Button;
 int Left, Right, Up, Down;
 
+int toggleState = LOW;
+
 void moveDownToCaptureStack();
 void moveDownToDiscardStack();
 void moveToAboveCaptureStack();
@@ -23,6 +25,8 @@ void userInterrupt();
 void setup() {
 
   // Magnetventile-------------------------------------------------------
+  // VUVS
+  pinMode(5, OUTPUT);  // Vakuum
   // VUVG
   pinMode(6, OUTPUT);  // Schwenk
   pinMode(7, OUTPUT);  // Schwenk
@@ -78,11 +82,13 @@ void loop() {
   // Eingabe über den Seriellen Monitor
   // Mögliche Eingabe:  c -- Aktiviert den Controller (Steuerung des Linear-Schwenkmoduls über 4 Taster) >> Später Knopf auf Controller
   //                    a -- Aktiviert die Automatische Sequenz >> Später Knopf auf Controller
-  //                    s -- temporäre Ausgabe des Statuses von userInterrupted
+  //                    v -- Toggelt das Vakuum
   if (Serial.available()) {
     switch (Serial.read()) {
-      case 's':
-        Serial.println(userInterrupted);
+      case 'v':
+        Serial.println("vacuum");
+        toggleState = !toggleState;
+        digitalWrite(5, toggleState);
         break;
       case 'c':
         Serial.println(F("controller"));
@@ -94,11 +100,7 @@ void loop() {
       case 'a':
         Serial.println(F("automatic"));
 
-        Serial.print("userInterrupted: ");
-        Serial.println(userInterrupted);
         (userInterrupted) ? userInterrupted = false : 0;  // Wenn abgebrochen wurde durch interrupt, dann muss erst flag wieder deaktiviert werden
-        Serial.print("userInterrupted: ");
-        Serial.println(userInterrupted);
 
         for (int i = 0; i < SHEET_NUM; i++) {
           moveToAboveCaptureStack();
@@ -197,14 +199,9 @@ void moveToAboveCaptureStack() {
     }
     switch (state) {
       case 0:
-        Serial.print("state = 0, Endpoint_Button: ");
-        Serial.println(Endpoint_Button);
-
         digitalWrite(8, HIGH);
         break;
       case 1:
-        Serial.print("state = 1, Endpoint_Button: ");
-        Serial.println(Endpoint_Button);
         digitalWrite(8, LOW);
         digitalWrite(9, HIGH);
         delay(50);
