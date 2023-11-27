@@ -17,6 +17,7 @@ void moveToAboveCaptureStack();
 void moveToAboveDiscardStack();
 void readButtons();
 void readControlButtons();
+void stopMovement();
 void userInterrupt();
 
 void setup() {
@@ -70,27 +71,34 @@ void loop() {
       Serial.println(F("Down"));
       digitalWrite(9, HIGH);
     } else {
-      Serial.println(F("else"));
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
+      stopMovement();
     }
   }
 
   // Eingabe über den Seriellen Monitor
   // Mögliche Eingabe:  c -- Aktiviert den Controller (Steuerung des Linear-Schwenkmoduls über 4 Taster) >> Später Knopf auf Controller
   //                    a -- Aktiviert die Automatische Sequenz >> Später Knopf auf Controller
+  //                    s -- temporäre Ausgabe des Statuses von userInterrupted
   if (Serial.available()) {
     switch (Serial.read()) {
+      case 's':
+        Serial.println(userInterrupted);
+        break;
       case 'c':
         Serial.println(F("controller"));
+
+        (userInterrupted) ? userInterrupted = false : 0;  // Wenn abgebrochen wurde durch interrupt, dann muss erst flag wieder deaktiviert werden
+
         controller = !controller;
         break;
       case 'a':
         Serial.println(F("automatic"));
 
-        // automatic kann aktuell nicht abgebrochen werden
+        Serial.print("userInterrupted: ");
+        Serial.println(userInterrupted);
+        (userInterrupted) ? userInterrupted = false : 0;  // Wenn abgebrochen wurde durch interrupt, dann muss erst flag wieder deaktiviert werden
+        Serial.print("userInterrupted: ");
+        Serial.println(userInterrupted);
 
         for (int i = 0; i < SHEET_NUM; i++) {
           moveToAboveCaptureStack();
@@ -132,6 +140,10 @@ void moveDownToCaptureStack() {
         break;
     }
   }
+
+  if (userInterrupted) {
+    stopMovement();
+  }
 }
 
 void moveDownToDiscardStack() {
@@ -163,6 +175,10 @@ void moveDownToDiscardStack() {
         break;
     }
   }
+
+  if (userInterrupted) {
+    stopMovement();
+  }
 }
 
 void moveToAboveCaptureStack() {
@@ -181,9 +197,14 @@ void moveToAboveCaptureStack() {
     }
     switch (state) {
       case 0:
+        Serial.print("state = 0, Endpoint_Button: ");
+        Serial.println(Endpoint_Button);
+
         digitalWrite(8, HIGH);
         break;
       case 1:
+        Serial.print("state = 1, Endpoint_Button: ");
+        Serial.println(Endpoint_Button);
         digitalWrite(8, LOW);
         digitalWrite(9, HIGH);
         delay(50);
@@ -197,6 +218,10 @@ void moveToAboveCaptureStack() {
         goalPos = true;
         break;
     }
+  }
+
+  if (userInterrupted) {
+    stopMovement();
   }
 }
 
@@ -234,6 +259,10 @@ void moveToAboveDiscardStack() {
         break;
     }
   }
+
+  if (userInterrupted) {
+    stopMovement();
+  }
 }
 
 void readButtons() {
@@ -252,16 +281,21 @@ void readControlButtons() {
   Down = digitalRead(49);
 }
 
+void stopMovement() {
+  digitalWrite(6, LOW);
+  digitalWrite(7, LOW);
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
+}
+
 void userInterrupt() {
   unsigned long currentTime = millis();
   if (currentTime - lastDebounceTime > DEBOUNCE_DELAY && digitalRead(2) == HIGH) {
-    userInterrupted = !userInterrupted;  // Ändere den Zustand des Interrupts, wenn die Entprellzeit vergangen ist
-    Serial.println(digitalRead(2));
+    userInterrupted = true;  // Ändere den Zustand des Interrupts, wenn die Entprellzeit vergangen ist
+    Serial.println("Interrupt!");
   }
   lastDebounceTime = currentTime;  // Aktualisiere den Zeitstempel für die letzte Zustandsänderung
 }
-
-
 
 
 
