@@ -62,6 +62,7 @@ void loop() {
 
     readControlButtons();
 
+    // Vakuum muss noch hinzugefügt werden >> momentan zu wenig Taster
     if (Left == HIGH) {
       Serial.println(F("Left"));
       digitalWrite(6, HIGH);
@@ -105,9 +106,10 @@ void loop() {
         for (int i = 0; i < SHEET_NUM; i++) {
           moveToAboveCaptureStack();
           moveDownToCaptureStack();
-          // Delay & Vakuum aktivieren
+          digitalWrite(5, HIGH); // Delay & Vakuum aktivieren
           moveToAboveDiscardStack();
           moveDownToDiscardStack();
+          digitalWrite(5, LOW); // Delay & Vakuum deaktivieren
         }
         moveToAboveCaptureStack();
         break;
